@@ -1,103 +1,124 @@
-import Image from "next/image";
+"use client";
+
+import React, { useState, useCallback, useReducer } from "react";
+import LandingPage from "@/components/LandingPage/LandingPage"; // Main Compound Component
+import { reducer, initialState, ACTIONS } from "@/components/LandingPage/state";
+import toast from "react-hot-toast";
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [state, dispatch] = useReducer(reducer, initialState);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+  const handleFileDrop = useCallback((acceptedFiles: File[]) => {
+    if (acceptedFiles && acceptedFiles.length > 0) {
+      dispatch({ type: ACTIONS.SET_FILE, payload: acceptedFiles[0] });
+    } else {
+      toast.error("Invalid file type. Please upload a PDF.");
+      dispatch({ type: ACTIONS.SET_FILE, payload: null }); // Clear file on error
+    }
+  }, []);
+
+  const handleConvert = async () => {
+    // Check if a file is selected
+    if (!state.selectedFile) {
+      dispatch({
+        type: ACTIONS.CONVERSION_ERROR,
+        payload: "No file selected.",
+      });
+      return;
+    }
+
+    dispatch({ type: ACTIONS.SET_LOADING, payload: true });
+    dispatch({ type: ACTIONS.CONVERSION_ERROR, payload: null }); // Clear previous errors
+
+    const file = state.selectedFile;
+    const apiUrl = "http://localhost/pdf2md/public/pdf2md"; // Or your actual API endpoint
+
+    try {
+      const response = await fetch(apiUrl, {
+        method: "POST",
+        headers: {
+          // Set Content-Type to indicate raw data, adjust if needed
+          "Content-Type": "application/pdf",
+          // Include the filename in a custom header as your backend expects
+          "X-Filename": file.name,
+        },
+        // *** Send the File object directly as the body ***
+        body: file,
+      });
+
+      if (!response.ok) {
+        // Handle non-2xx responses (like the 400 or 500 errors from PHP)
+        let errorMsg = `Conversion failed with status: ${response.status}`;
+        try {
+          // Try to get a more specific error message from the backend response body
+          const errorData = await response.json(); // Assuming backend sends JSON on error
+          errorMsg = errorData.message || errorMsg;
+          console.error("Conversion error:", errorData);
+
+        } catch (e) {
+          // If response body isn't JSON or empty, use the status code
+          errorMsg = (await response.text()) || errorMsg; // Get raw text if not JSON
+        }
+        throw new Error(errorMsg); // Throw error to be caught below
+      }
+
+      // --- Handle successful conversion ---
+
+      // Get the markdown content from the response body
+      const markdownContent = await response.text();
+
+      // Create a Blob from the markdown content
+      const blob = new Blob([markdownContent], {
+        type: "text/markdown;charset=utf-8",
+      });
+
+      // Create a temporary URL for the Blob
+      const url = window.URL.createObjectURL(blob);
+
+      // Create a link element to trigger the download
+      const link = document.createElement("a");
+      link.href = url;
+
+      // Set the download filename (use original filename + .md)
+      const downloadFilename = file.name.replace(/\.[^/.]+$/, "") + ".md"; // Remove original extension, add .md
+      link.setAttribute("download", downloadFilename);
+
+      // Append to DOM, click, and remove
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // Revoke the object URL to free up memory
+      window.URL.revokeObjectURL(url);
+
+      dispatch({ type: ACTIONS.CONVERSION_SUCCESS }); // Update state on success
+    } catch (error: any) {
+      console.error("Conversion error:", error);
+      dispatch({
+        type: ACTIONS.CONVERSION_ERROR,
+        payload:
+          error.message || "An unknown error occurred during conversion.",
+      });
+    } finally {
+      dispatch({ type: ACTIONS.SET_LOADING, payload: false }); // Ensure loading is always turned off
+    }
+  };
+
+  return (
+    // Pass state and handlers down via context provided by LandingPage
+    <LandingPage
+      state={state}
+      onFileDrop={handleFileDrop}
+      onConvert={handleConvert}
+    >
+      <LandingPage.Hero />
+      <LandingPage.UploadZone />
+      {/* Conditional Rendering inside LandingPage based on state */}
+      <LandingPage.FileInfo />
+      <LandingPage.ConvertButton />
+      <LandingPage.LoadingIndicator />
+      {/* Optional Sections */}
+      {/* <LandingPage.Features /> */}
+    </LandingPage>
   );
 }
