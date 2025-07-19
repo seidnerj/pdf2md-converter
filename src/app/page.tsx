@@ -31,7 +31,7 @@ export default function Home() {
     dispatch({ type: ACTIONS.CONVERSION_ERROR, payload: null }); // Clear previous errors
 
     const file = state.selectedFile;
-    const apiUrl = "http://localhost/pdf2md/public/pdf2md"; // Or your actual API endpoint
+    const apiUrl = "http://localhost:8000/pdf2md/public/pdf2md"; // Or your actual API endpoint
 
     try {
       const response = await fetch(apiUrl, {
@@ -54,7 +54,6 @@ export default function Home() {
           const errorData = await response.json(); // Assuming backend sends JSON on error
           errorMsg = errorData.message || errorMsg;
           console.error("Conversion error:", errorData);
-
         } catch (e) {
           // If response body isn't JSON or empty, use the status code
           errorMsg = (await response.text()) || errorMsg; // Get raw text if not JSON
