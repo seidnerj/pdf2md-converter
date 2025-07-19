@@ -34,3 +34,25 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## PHP Configuration (for backend services)
+
+If you're encountering PHP POST content-length limits, you can increase or remove the limits by modifying these settings in your `php.ini` file:
+
+```ini
+post_max_size = 0
+upload_max_filesize = 0
+max_execution_time = 0
+max_input_time = 0
+memory_limit = -1
+```
+
+Setting these values to `0` or `-1` removes the limits. After making changes, restart your web server (Apache/Nginx) for the settings to take effect.
+
+You can also set these temporarily in your PHP script:
+```php
+ini_set('post_max_size', '0');
+ini_set('upload_max_filesize', '0');
+ini_set('max_execution_time', '0');
+ini_set('memory_limit', '-1');
+```
